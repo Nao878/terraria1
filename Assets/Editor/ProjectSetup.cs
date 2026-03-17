@@ -9,123 +9,80 @@ public class ProjectSetup
     [MenuItem("Setup/Build & Update System")]
     public static void BuildAndUpdateSystem()
     {
-        Debug.Log("Starting Build & Update System...");
+        Debug.Log("Starting Build & Update System (Troubleshooting Mode)...");
         
-        // 1. Sprite Settings
-        FixSprite("Assets/dirt_sprite.png");
-        FixSprite("Assets/player_sprite.png");
+        // 1. Grid & Tilemap Infrastructure Fix (Phase 1)
+        GameObject gridObj = GameObject.Find("Grid");
+        if (gridObj == null) gridObj = new GameObject("Grid");
+        
+        // Reset Grid Transform
+        gridObj.transform.position = Vector3.zero;
+        gridObj.transform.rotation = Quaternion.identity;
+        gridObj.transform.localScale = Vector3.one;
 
-        // 2. Tile Assets
-        Tile dirtTile = AssetDatabase.LoadAssetAtPath<Tile>("Assets/DirtTile.asset");
-        if (dirtTile == null) {
-            dirtTile = ScriptableObject.CreateInstance<Tile>();
-            AssetDatabase.CreateAsset(dirtTile, "Assets/DirtTile.asset");
-        }
-        Sprite s = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/dirt_sprite.png");
-        dirtTile.sprite = s;
-        dirtTile.colliderType = Tile.ColliderType.Sprite;
-        EditorUtility.SetDirty(dirtTile);
+        // Force Grid Component
+        Grid grid = gridObj.GetComponent<Grid>();
+        if (grid == null) grid = gridObj.AddComponent<Grid>();
+        grid.cellSize = new Vector3(1, 1, 0);
 
-        // 3. Find missing scripts and re-attach WorldGenerator if possible
-        GameObject wgObj = GameObject.Find("WorldGenerator");
-        if (wgObj != null) {
-            GameObjectUtility.RemoveMonoBehavioursWithMissingScript(wgObj);
-            if (wgObj.GetComponent<WorldGenerator>() == null) {
-                Debug.Log("Re-attaching WorldGenerator script...");
-                wgObj.AddComponent<WorldGenerator>();
-            }
-        }
-
-        // 4. World Generator & Tilemap Setup
-        WorldGenerator wg = Object.FindFirstObjectByType<WorldGenerator>();
-        Tilemap ground = GameObject.Find("Ground")?.GetComponent<Tilemap>();
-        if (wg != null && ground != null)
+        // GroundTilemap Setup
+        GameObject groundObj = GameObject.Find("GroundTilemap");
+        if (groundObj == null)
         {
-            wg.groundTilemap = ground;
-            wg.groundTile = dirtTile;
-            wg.GenerateWorld();
-            
-            ground.RefreshAllTiles();
-            ground.CompressBounds();
-            
-            var col = ground.GetComponent<TilemapCollider2D>();
-            if (col) col.ProcessTilemapChanges();
-
-            Debug.Log($"Final Bounds: {ground.localBounds}, ShapeCount: {col?.shapeCount}");
-            EditorUtility.SetDirty(wg);
+            groundObj = new GameObject("GroundTilemap");
+            groundObj.transform.parent = gridObj.transform;
         }
+        
+        // Reset Tilemap Transform
+        groundObj.transform.localPosition = Vector3.zero;
+        groundObj.transform.localRotation = Quaternion.identity;
+        groundObj.transform.localScale = Vector3.one;
 
-        // 5. Player Setup
+        // Ensure Components
+        Tilemap tilemap = groundObj.GetComponent<Tilemap>();
+        if (tilemap == null) tilemap = groundObj.AddComponent<Tilemap>();
+        
+        TilemapRenderer tr = groundObj.GetComponent<TilemapRenderer>();
+        if (tr == null) tr = groundObj.AddComponent<TilemapRenderer>();
+        tr.enabled = true;
+
+        TilemapCollider2D tc = groundObj.GetComponent<TilemapCollider2D>();
+        if (tc == null) tc = groundObj.AddComponent<TilemapCollider2D>();
+        tc.enabled = true;
+
+        // 2. Simple Spawning Logic (Phase 2)
         GameObject player = GameObject.Find("Player");
-        if (player != null) {
-            var sr = player.GetComponent<SpriteRenderer>();
-            if (sr) sr.sharedMaterial = AssetDatabase.GetBuiltinExtraResource<Material>("Sprites-Default.mat");
-            
-            if (wg != null) {
-                Vector3 baseSpawn = wg.GetSpawnPosition();
-                // Add an additional offset to ensure the player spawns in the air and falls down
-                player.transform.position = new Vector3(baseSpawn.x, baseSpawn.y + 1.5f, baseSpawn.z);
-            }
-            EditorUtility.SetDirty(player);
+        Tile dirtTile = AssetDatabase.LoadAssetAtPath<Tile>("Assets/DirtTile.asset");
 
-            // 6. Create Safety Platform
-            CreateSafetyPlatform(player.transform.position);
+        if (player != null && tilemap != null && dirtTile != null)
+        {
+            // Clear current tiles to isolate the test
+            tilemap.ClearAllTiles();
+
+            // Place exactly 1 block under the player
+            Vector3 playerPos = player.transform.position;
+            // Target the cell directly below the player's center
+            Vector3Int cellPos = tilemap.WorldToCell(playerPos + Vector3.down * 1.0f);
+            
+            tilemap.SetTile(cellPos, dirtTile);
+            
+            // Sync Collider and Display
+            tilemap.RefreshAllTiles();
+            tc.ProcessTilemapChanges();
+
+            Debug.Log($"Verification tile placed at Cell: {cellPos} (World Pos mapped from player: {playerPos})");
+        }
+        else
+        {
+            Debug.LogError($"Missing references! Player: {player != null}, Tilemap: {tilemap != null}, Tile: {dirtTile != null}");
         }
 
+        // 3. Cleanup & Save
         AssetDatabase.SaveAssets();
         EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
         EditorSceneManager.SaveOpenScenes();
         
-        Debug.Log("Build & Update System Completed and Scene Saved!");
-    }
-
-    static void CreateSafetyPlatform(Vector3 spawnPos)
-    {
-        GameObject platformParent = GameObject.Find("SpawnSafetyPlatform");
-        if (platformParent != null) Object.DestroyImmediate(platformParent);
-        
-        platformParent = new GameObject("SpawnSafetyPlatform");
-        
-        // Brown color for the blocks
-        Color brown = new Color(0.45f, 0.25f, 0.1f);
-        // Lower by 1 additional unit as requested (total -2.5 from spawnPos)
-        Vector3 platformStart = spawnPos + Vector3.down * 2.5f;
-
-        // Expanded to 15x6 (X: -7 to 7, Y: 0 to -5)
-        for (int y = 0; y > -6; y--)
-        {
-            for (int x = -7; x <= 7; x++)
-            {
-                GameObject block = new GameObject($"SafetyBlock_{x}_{Mathf.Abs(y)}");
-                block.transform.parent = platformParent.transform;
-                block.transform.position = platformStart + new Vector3(x, y, 0);
-                
-                // Add BoxCollider2D (Static is default)
-                var bc = block.AddComponent<BoxCollider2D>();
-                bc.size = Vector2.one;
-                
-                // Visuals
-                SpriteRenderer sr = block.AddComponent<SpriteRenderer>();
-                Sprite dirtSprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/dirt_sprite.png");
-                sr.sprite = dirtSprite;
-                sr.color = brown;
-                sr.sharedMaterial = AssetDatabase.GetBuiltinExtraResource<Material>("Sprites-Default.mat");
-            }
-        }
-        
-        Debug.Log("Expanded 15x6 Safety Foundation created under the player.");
-    }
-
-    static void FixSprite(string path)
-    {
-        TextureImporter importer = AssetImporter.GetAtPath(path) as TextureImporter;
-        if (importer != null)
-        {
-            importer.textureType = TextureImporterType.Sprite;
-            importer.spritePixelsPerUnit = 16;
-            importer.filterMode = FilterMode.Point;
-            importer.SaveAndReimport();
-        }
+        Debug.Log("Build & Update System Completed (Phase 1 & 2 Fixes Applied).");
     }
 }
 #endif
