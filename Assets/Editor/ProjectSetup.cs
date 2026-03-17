@@ -77,7 +77,28 @@ public class ProjectSetup
             Debug.LogError($"Missing references! Player: {player != null}, Tilemap: {tilemap != null}, Tile: {dirtTile != null}");
         }
 
-        // 3. Cleanup & Save
+        // 3. Physics Material Setup (Phase 9)
+        PhysicsMaterial2D zeroFriction = AssetDatabase.LoadAssetAtPath<PhysicsMaterial2D>("Assets/ZeroFrictionMaterial.physicsMaterial2D");
+        if (zeroFriction == null)
+        {
+            zeroFriction = new PhysicsMaterial2D("ZeroFrictionMaterial");
+            AssetDatabase.CreateAsset(zeroFriction, "Assets/ZeroFrictionMaterial.physicsMaterial2D");
+        }
+        zeroFriction.friction = 0f;
+        zeroFriction.bounciness = 0f;
+        EditorUtility.SetDirty(zeroFriction);
+
+        if (player != null)
+        {
+            BoxCollider2D playerCollider = player.GetComponent<BoxCollider2D>();
+            if (playerCollider != null)
+            {
+                playerCollider.sharedMaterial = zeroFriction;
+                Debug.Log("ZeroFrictionMaterial assigned to Player BoxCollider2D.");
+            }
+        }
+
+        // 4. Cleanup & Save
         AssetDatabase.SaveAssets();
         EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
         EditorSceneManager.SaveOpenScenes();
