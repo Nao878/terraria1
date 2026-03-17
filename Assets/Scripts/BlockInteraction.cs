@@ -5,35 +5,53 @@ using UnityEngine.InputSystem;
 public class BlockInteraction : MonoBehaviour
 {
     public Tilemap groundTilemap;
-    public TileBase blockToPlace;
+    public TileBase groundTile;
+    private Camera mainCamera;
+
+    void Start()
+    {
+        mainCamera = Camera.main;
+        
+        // Auto-assign references if they are missing
+        if (groundTilemap == null)
+        {
+            GameObject groundObj = GameObject.Find("GroundTilemap");
+            if (groundObj != null) groundTilemap = groundObj.GetComponent<Tilemap>();
+        }
+    }
 
     void Update()
     {
-        if (Mouse.current == null) return;
+        if (mainCamera == null || groundTilemap == null || Mouse.current == null) return;
 
-        bool leftClick = Mouse.current.leftButton.wasPressedThisFrame;
-        bool rightClick = Mouse.current.rightButton.wasPressedThisFrame;
+        // Step 2: Coordinate conversion with rigid Z-correction
+        Vector2 mouseInput = Mouse.current.position.ReadValue();
+        // Use a non-zero Z for ScreenToWorldPoint to avoid camera-plane issues (10 is standard for 2D)
+        Vector3 worldPos = mainCamera.ScreenToWorldPoint(new Vector3(mouseInput.x, mouseInput.y, 10f));
+        worldPos.z = 0f; // Force Z to 0 exactly as requested
 
-        if (leftClick) Interact(true);
-        else if (rightClick) Interact(false);
-    }
+        // Step 3: Reach distance check
+        float distance = Vector2.Distance(transform.position, worldPos);
 
-    void Interact(bool destroy)
-    {
-        if (groundTilemap == null || Camera.main == null) return;
-
-        Vector2 mousePos = Mouse.current.position.ReadValue();
-        Vector3 worldPos = Camera.main.ScreenToWorldPoint(new Vector3(mousePos.x, mousePos.y, 0));
-        Vector3Int tilePos = groundTilemap.WorldToCell(new Vector3(worldPos.x, worldPos.y, 0));
-
-        // Removing distance check for easier testing of the digging system
-        if (destroy)
+        if (distance <= 5.0f)
         {
-            groundTilemap.SetTile(tilePos, null);
-        }
-        else if (blockToPlace != null && groundTilemap.GetTile(tilePos) == null)
-        {
-            groundTilemap.SetTile(tilePos, blockToPlace);
+            Vector3Int cellPos = groundTilemap.WorldToCell(worldPos);
+
+            // Left Click: Break
+            if (Mouse.current.leftButton.wasPressedThisFrame)
+            {
+                groundTilemap.SetTile(cellPos, null);
+                Debug.Log($"Broken block at: {cellPos}");
+            }
+            // Right Click: Place
+            else if (Mouse.current.rightButton.wasPressedThisFrame)
+            {
+                if (groundTile != null && groundTilemap.GetTile(cellPos) == null)
+                {
+                    groundTilemap.SetTile(cellPos, groundTile);
+                    Debug.Log($"Placed block at: {cellPos}");
+                }
+            }
         }
     }
 }

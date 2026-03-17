@@ -76,7 +76,7 @@ public class SetupHelper : MonoBehaviour
         if (bi != null)
         {
             bi.groundTilemap = GameObject.Find("Ground").GetComponent<Tilemap>();
-            bi.blockToPlace = AssetDatabase.LoadAssetAtPath<TileBase>("Assets/DirtTile.asset");
+            bi.groundTile = AssetDatabase.LoadAssetAtPath<TileBase>("Assets/DirtTile.asset");
         }
 
         // 3. Setup Tiles
