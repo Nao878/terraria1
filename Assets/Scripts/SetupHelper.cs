@@ -104,13 +104,31 @@ public class SetupHelper : MonoBehaviour
             }
         }
 
-        // 5. Camera Fix
+        // 5. Camera Fix (Force strict 2D Orthographic)
         Camera cam = Camera.main;
         if (cam != null)
         {
             cam.orthographic = true;
             cam.orthographicSize = 10f;
-            cam.transform.position = new Vector3(50, 30, -10);
+            cam.transform.position = new Vector3(cam.transform.position.x, cam.transform.position.y, -10f);
+            cam.transform.rotation = Quaternion.identity; // Force (0,0,0) rotation
+        }
+
+        // 6. Cinemachine Fix (Force 2D)
+        GameObject vcamObj = GameObject.Find("PlayerVCam");
+        if (vcamObj != null)
+        {
+            vcamObj.transform.rotation = Quaternion.identity; // Force (0,0,0) rotation
+            
+            // Note: Cinemachine Lens is controlled by the Virtual Camera component.
+            // We use standard Unity reflection/GetComponent to try and force orthographic if the type is accessible.
+            var vcam = vcamObj.GetComponent("CinemachineVirtualCamera") as MonoBehaviour;
+            if (vcam != null)
+            {
+                // We'll rely on the MCP tool to set the lens orthographic and distance reliably since the API changed in v3,
+                // but setting the transform rotation here guarantees the object isn't tilted.
+                Debug.Log("PlayerVCam transform rotation fixed.");
+            }
         }
 
         AssetDatabase.SaveAssets();
