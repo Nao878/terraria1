@@ -25,6 +25,14 @@ public class SetupHelper : MonoBehaviour
         if (gridObj == null) gridObj = new GameObject("Grid");
         if (gridObj.GetComponent<Grid>() == null) gridObj.AddComponent<Grid>();
 
+        // 1b. Cleanup redundant objects (Grid/Ground)
+        Transform legacyGround = gridObj.transform.Find("Ground");
+        if (legacyGround != null)
+        {
+            Debug.Log("Found legacy 'Ground' object. Deleting to prevent duplication...");
+            Object.DestroyImmediate(legacyGround.gameObject);
+        }
+
         // 2. Setup Ground Tilemap (unified name: "GroundTilemap")
         GameObject groundObj = GameObject.Find("GroundTilemap");
         if (groundObj == null)
