@@ -14,7 +14,7 @@ public class WorldGenerator : MonoBehaviour
     public Tilemap groundTilemap;
     public Tilemap backgroundTilemap;
     public TileBase groundTile;
-    public TileBase backgroundTile;
+    public TileBase wallTile;
 
     public bool isGenerated { get; private set; }
 
@@ -36,9 +36,12 @@ public class WorldGenerator : MonoBehaviour
         if (backgroundTilemap != null) backgroundTilemap.ClearAllTiles();
 
         int tileCount = 0;
+        int maxTerrainHeight = 0;
+
         for (int x = 0; x < width; x++)
         {
             int currentHeight = GetNoiseHeight(x);
+            if (currentHeight > maxTerrainHeight) maxTerrainHeight = currentHeight;
 
             for (int y = 0; y < currentHeight; y++)
             {
@@ -75,6 +78,23 @@ public class WorldGenerator : MonoBehaviour
         if (!groundTilemap.GetComponent<TilemapCollider2D>())
         {
             groundTilemap.gameObject.AddComponent<TilemapCollider2D>();
+        }
+
+        // 2. Generate Background (Mountains and Underground Walls)
+        if (backgroundTilemap != null && wallTile != null)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                // Different offset for mountain silhouette
+                float mountainNoise = Mathf.PerlinNoise((x + 1000f) / (scale * 1.5f), 0);
+                int mountainOffset = Mathf.FloorToInt(mountainNoise * 10f); // 0 to 10 blocks
+                int bgTopY = maxTerrainHeight + mountainOffset;
+
+                for (int y = 0; y <= bgTopY; y++)
+                {
+                    backgroundTilemap.SetTile(new Vector3Int(x, y, 0), wallTile);
+                }
+            }
         }
 
         isGenerated = true;

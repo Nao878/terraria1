@@ -20,6 +20,22 @@ public class SetupHelper : MonoBehaviour
             }
         }
 
+        // Setup wall_sprite.png
+        Texture2D wallTex = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/wall_sprite.png");
+        if (wallTex != null)
+        {
+            string path = AssetDatabase.GetAssetPath(wallTex);
+            TextureImporter importer = AssetImporter.GetAtPath(path) as TextureImporter;
+            if (importer != null && (importer.spritePixelsPerUnit != 16 || importer.filterMode != FilterMode.Point))
+            {
+                importer.textureType = TextureImporterType.Sprite;
+                importer.spritePixelsPerUnit = 16; 
+                importer.filterMode = FilterMode.Point;
+                importer.textureCompression = TextureImporterCompression.Uncompressed;
+                importer.SaveAndReimport();
+            }
+        }
+
         // 1. Setup Grid
         GameObject gridObj = GameObject.Find("Grid");
         if (gridObj == null) gridObj = new GameObject("Grid");
@@ -52,15 +68,17 @@ public class SetupHelper : MonoBehaviour
         if (tilemap == null) tilemap = groundObj.AddComponent<Tilemap>();
         if (groundObj.GetComponent<TilemapRenderer>() == null) groundObj.AddComponent<TilemapRenderer>();
         if (groundObj.GetComponent<TilemapCollider2D>() == null) groundObj.AddComponent<TilemapCollider2D>();
-
+        
         // 2b. Setup Background Tilemap
         GameObject bgObj = GameObject.Find("Background");
         if (bgObj == null)
         {
             bgObj = new GameObject("Background");
             bgObj.transform.parent = gridObj.transform;
+            bgObj.transform.localPosition = new Vector3(0, 0, 1); // Set slightly backwards
         }
-        if (bgObj.GetComponent<Tilemap>() == null) bgObj.AddComponent<Tilemap>();
+        Tilemap bgTilemap = bgObj.GetComponent<Tilemap>();
+        if (bgTilemap == null) bgTilemap = bgObj.AddComponent<Tilemap>();
         if (bgObj.GetComponent<TilemapRenderer>() == null) bgObj.AddComponent<TilemapRenderer>();
 
         // 3. Setup Player
@@ -118,6 +136,16 @@ public class SetupHelper : MonoBehaviour
             EditorUtility.SetDirty(dirtTile);
         }
 
+        Tile wallTile = AssetDatabase.LoadAssetAtPath<Tile>("Assets/WallTile.asset");
+        if (wallTile == null)
+        {
+            wallTile = ScriptableObject.CreateInstance<Tile>();
+            AssetDatabase.CreateAsset(wallTile, "Assets/WallTile.asset");
+            AssetDatabase.SaveAssets();
+        }
+        wallTile.sprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/wall_sprite.png");
+        EditorUtility.SetDirty(wallTile);
+
         // 6. World Generator - reference the SAME GroundTilemap
         // Find existing or create WorldGenerator object
         WorldGenerator wg = Object.FindFirstObjectByType<WorldGenerator>();
@@ -138,9 +166,11 @@ public class SetupHelper : MonoBehaviour
         if (wg != null)
         {
             // === CRITICAL FIX: Set to the SAME GroundTilemap object ===
-            wg.groundTilemap = groundObj.GetComponent<Tilemap>();
-            wg.backgroundTilemap = bgObj.GetComponent<Tilemap>();
+            wg.groundTilemap = tilemap;
+            wg.backgroundTilemap = bgTilemap;
             wg.groundTile = dirtTile;
+            wg.wallTile = wallTile;
+            EditorUtility.SetDirty(wg);
             wg.GenerateWorld();
 
             // Reposition player
