@@ -20,21 +20,42 @@ public class SetupHelper : MonoBehaviour
             }
         }
 
-        // 1. Setup Ground Tilemap
-        GameObject groundObj = GameObject.Find("Ground");
-        if (groundObj != null)
+        // 1. Setup Grid
+        GameObject gridObj = GameObject.Find("Grid");
+        if (gridObj == null) gridObj = new GameObject("Grid");
+        if (gridObj.GetComponent<Grid>() == null) gridObj.AddComponent<Grid>();
+
+        // 2. Setup Ground Tilemap (unified name: "GroundTilemap")
+        GameObject groundObj = GameObject.Find("GroundTilemap");
+        if (groundObj == null)
         {
-            Tilemap tilemap = groundObj.GetComponent<Tilemap>();
-            if (tilemap != null)
-            {
-                if (groundObj.GetComponent<TilemapCollider2D>() == null)
-                {
-                    groundObj.AddComponent<TilemapCollider2D>();
-                }
-            }
+            groundObj = new GameObject("GroundTilemap");
+            groundObj.transform.parent = gridObj.transform;
         }
 
-        // 2. Setup Player
+        // Ensure GroundTilemap is on the "Ground" layer
+        int groundLayerIndex = LayerMask.NameToLayer("Ground");
+        if (groundLayerIndex >= 0)
+        {
+            groundObj.layer = groundLayerIndex;
+        }
+
+        Tilemap tilemap = groundObj.GetComponent<Tilemap>();
+        if (tilemap == null) tilemap = groundObj.AddComponent<Tilemap>();
+        if (groundObj.GetComponent<TilemapRenderer>() == null) groundObj.AddComponent<TilemapRenderer>();
+        if (groundObj.GetComponent<TilemapCollider2D>() == null) groundObj.AddComponent<TilemapCollider2D>();
+
+        // 2b. Setup Background Tilemap
+        GameObject bgObj = GameObject.Find("Background");
+        if (bgObj == null)
+        {
+            bgObj = new GameObject("Background");
+            bgObj.transform.parent = gridObj.transform;
+        }
+        if (bgObj.GetComponent<Tilemap>() == null) bgObj.AddComponent<Tilemap>();
+        if (bgObj.GetComponent<TilemapRenderer>() == null) bgObj.AddComponent<TilemapRenderer>();
+
+        // 3. Setup Player
         GameObject player = GameObject.Find("Player");
         if (player == null) player = new GameObject("Player");
 
@@ -42,12 +63,13 @@ public class SetupHelper : MonoBehaviour
         if (player.GetComponent<Rigidbody2D>() == null) player.AddComponent<Rigidbody2D>();
         if (player.GetComponent<BoxCollider2D>() == null) player.AddComponent<BoxCollider2D>();
         
-        if (player.GetComponent("PlayerController") == null) player.AddComponent(System.Type.GetType("PlayerController"));
-        if (player.GetComponent("BlockInteraction") == null) player.AddComponent(System.Type.GetType("BlockInteraction"));
+        if (player.GetComponent(typeof(PlayerController)) == null) player.AddComponent(System.Type.GetType("PlayerController"));
+        if (player.GetComponent(typeof(BlockInteraction)) == null) player.AddComponent(System.Type.GetType("BlockInteraction"));
 
         SpriteRenderer sr = player.GetComponent<SpriteRenderer>();
         sr.sprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/player_sprite.png");
-        player.transform.localScale = new Vector3(1, 2, 1);
+        // Sprite is 16x32px at PPU=16 = 1x2 units natively, no scale needed
+        player.transform.localScale = new Vector3(1, 1, 1);
 
         Rigidbody2D rb = player.GetComponent<Rigidbody2D>();
         rb.freezeRotation = true;
@@ -55,31 +77,32 @@ public class SetupHelper : MonoBehaviour
         rb.collisionDetectionMode = CollisionDetectionMode2D.Continuous;
 
         BoxCollider2D bc = player.GetComponent<BoxCollider2D>();
-        bc.size = new Vector2(0.9f, 0.9f); // Slightly smaller to avoid friction
+        bc.size = new Vector2(0.9f, 1.8f); // 2-block tall hitbox
 
         PlayerController pc = player.GetComponent<PlayerController>();
         if (pc != null)
         {
             pc.moveSpeed = 8f;
             pc.jumpForce = 15f;
-            if (player.transform.childCount == 0)
+            if (player.transform.Find("GroundCheck") == null)
             {
                 GameObject gc = new GameObject("GroundCheck");
                 gc.transform.parent = player.transform;
-                gc.transform.localPosition = new Vector3(0, -0.6f, 0);
+                gc.transform.localPosition = new Vector3(0, -1.0f, 0); // Bottom of 2-unit tall player
             }
             pc.groundCheck = player.transform.Find("GroundCheck");
             pc.groundLayer = LayerMask.GetMask("Ground");
         }
 
+        // 4. BlockInteraction - reference the SAME GroundTilemap
         BlockInteraction bi = player.GetComponent<BlockInteraction>();
         if (bi != null)
         {
-            bi.groundTilemap = GameObject.Find("Ground").GetComponent<Tilemap>();
+            bi.groundTilemap = groundObj.GetComponent<Tilemap>();
             bi.groundTile = AssetDatabase.LoadAssetAtPath<TileBase>("Assets/DirtTile.asset");
         }
 
-        // 3. Setup Tiles
+        // 5. Setup Tiles
         Tile dirtTile = AssetDatabase.LoadAssetAtPath<Tile>("Assets/DirtTile.asset");
         if (dirtTile != null)
         {
@@ -87,51 +110,59 @@ public class SetupHelper : MonoBehaviour
             EditorUtility.SetDirty(dirtTile);
         }
 
-        // 4. World Generator
-        GameObject wgObj = GameObject.Find("WorldGeneratorLogic");
-        if (wgObj != null)
+        // 6. World Generator - reference the SAME GroundTilemap
+        // Find existing or create WorldGenerator object
+        WorldGenerator wg = Object.FindFirstObjectByType<WorldGenerator>();
+        GameObject wgObj = wg != null ? wg.gameObject : null;
+
+        if (wgObj == null)
         {
-            WorldGenerator wg = wgObj.GetComponent<WorldGenerator>();
-            if (wg != null)
+            // Try by legacy name first
+            wgObj = GameObject.Find("WorldGeneratorLogic");
+            if (wgObj == null)
             {
-                wg.groundTilemap = GameObject.Find("Ground").GetComponent<Tilemap>();
-                wg.backgroundTilemap = GameObject.Find("Background").GetComponent<Tilemap>();
-                wg.groundTile = dirtTile;
-                wg.GenerateWorld();
-                
-                // Reposition player
-                player.transform.position = wg.GetSpawnPosition();
+                wgObj = new GameObject("WorldGeneratorLogic");
             }
+            wg = wgObj.GetComponent<WorldGenerator>();
+            if (wg == null) wg = wgObj.AddComponent<WorldGenerator>();
         }
 
-        // 5. Camera Fix (Force strict 2D Orthographic)
+        if (wg != null)
+        {
+            // === CRITICAL FIX: Set to the SAME GroundTilemap object ===
+            wg.groundTilemap = groundObj.GetComponent<Tilemap>();
+            wg.backgroundTilemap = bgObj.GetComponent<Tilemap>();
+            wg.groundTile = dirtTile;
+            wg.GenerateWorld();
+
+            // Reposition player
+            player.transform.position = wg.GetSpawnPosition();
+        }
+
+        // 7. Camera Fix (Force strict 2D Orthographic)
         Camera cam = Camera.main;
         if (cam != null)
         {
             cam.orthographic = true;
             cam.orthographicSize = 10f;
             cam.transform.position = new Vector3(cam.transform.position.x, cam.transform.position.y, -10f);
-            cam.transform.rotation = Quaternion.identity; // Force (0,0,0) rotation
+            cam.transform.rotation = Quaternion.identity;
         }
 
-        // 6. Cinemachine Fix (Force 2D)
+        // 8. Cinemachine Fix (Force 2D)
         GameObject vcamObj = GameObject.Find("PlayerVCam");
         if (vcamObj != null)
         {
-            vcamObj.transform.rotation = Quaternion.identity; // Force (0,0,0) rotation
-            
-            // Note: Cinemachine Lens is controlled by the Virtual Camera component.
-            // We use standard Unity reflection/GetComponent to try and force orthographic if the type is accessible.
+            vcamObj.transform.rotation = Quaternion.identity;
+
             var vcam = vcamObj.GetComponent("CinemachineVirtualCamera") as MonoBehaviour;
             if (vcam != null)
             {
-                // We'll rely on the MCP tool to set the lens orthographic and distance reliably since the API changed in v3,
-                // but setting the transform rotation here guarantees the object isn't tilted.
                 Debug.Log("PlayerVCam transform rotation fixed.");
             }
         }
 
         AssetDatabase.SaveAssets();
-        Debug.Log("Scene consistency check completed (Fix for Spawning & Collision)!");
+        Debug.Log("SetupHelper: Scene consistency check completed!");
     }
 }
