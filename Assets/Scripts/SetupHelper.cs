@@ -1,13 +1,16 @@
 using UnityEngine;
 using UnityEngine.Tilemaps;
 using UnityEditor;
+using TMPro;
+using UnityEngine.UI;
+using UnityEngine.EventSystems;
 
 public class SetupHelper : MonoBehaviour
 {
     public static void RunSetup()
     {
         // 0. Fix Sprite PPU
-        string[] sprites = { "Assets/dirt_sprite.png", "Assets/wall_sprite.png", "Assets/player_sprite.png" };
+        string[] sprites = { "Assets/dirt_sprite.png", "Assets/wall_sprite.png", "Assets/player_sprite.png", "Assets/kanji_wood_sprite.png" };
         foreach (string path in sprites)
         {
             TextureImporter importer = AssetImporter.GetAtPath(path) as TextureImporter;
@@ -146,6 +149,21 @@ public class SetupHelper : MonoBehaviour
         wallTile.sprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/wall_sprite.png");
         EditorUtility.SetDirty(wallTile);
 
+        Tile kanjiWoodTile = AssetDatabase.LoadAssetAtPath<Tile>("Assets/KanjiWoodTile.asset");
+        if (kanjiWoodTile == null)
+        {
+            kanjiWoodTile = ScriptableObject.CreateInstance<Tile>();
+            AssetDatabase.CreateAsset(kanjiWoodTile, "Assets/KanjiWoodTile.asset");
+            AssetDatabase.SaveAssets();
+        }
+        kanjiWoodTile.sprite = AssetDatabase.LoadAssetAtPath<Sprite>("Assets/kanji_wood_sprite.png");
+        EditorUtility.SetDirty(kanjiWoodTile);
+
+        if (bi != null)
+        {
+            bi.kanjiWoodTile = kanjiWoodTile;
+        }
+
         // 6. World Generator - reference the SAME GroundTilemap
         // Find existing or create WorldGenerator object
         WorldGenerator wg = Object.FindFirstObjectByType<WorldGenerator>();
@@ -170,6 +188,7 @@ public class SetupHelper : MonoBehaviour
             wg.backgroundTilemap = bgTilemap;
             wg.groundTile = dirtTile;
             wg.wallTile = wallTile;
+            wg.kanjiWoodTile = kanjiWoodTile;
             EditorUtility.SetDirty(wg);
             wg.GenerateWorld();
 
@@ -177,7 +196,126 @@ public class SetupHelper : MonoBehaviour
             player.transform.position = wg.GetSpawnPosition();
         }
 
-        // 7. Camera Fix (Force strict 2D Orthographic)
+        // 9. Setup Inventory UI
+        TMP_FontAsset fontAsset = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>("Assets/TextMesh Pro/Fonts/NotoSansJP-Bold SDF.asset");
+        if (fontAsset == null) Debug.LogWarning("NotoSansJP font not found!");
+
+        GameObject canvasObj = GameObject.Find("Canvas");
+        if (canvasObj == null)
+        {
+            canvasObj = new GameObject("Canvas");
+            Canvas canvas = canvasObj.AddComponent<Canvas>();
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            canvasObj.AddComponent<CanvasScaler>();
+            canvasObj.AddComponent<GraphicRaycaster>();
+        }
+
+        GameObject eventSystem = GameObject.Find("EventSystem");
+        if (eventSystem == null)
+        {
+            eventSystem = new GameObject("EventSystem");
+            eventSystem.AddComponent<EventSystem>();
+            eventSystem.AddComponent<StandaloneInputModule>();
+        }
+
+        GameObject toggleBtnObj = GameObject.Find("InventoryToggleButton");
+        if (toggleBtnObj == null)
+        {
+            toggleBtnObj = new GameObject("InventoryToggleButton");
+            toggleBtnObj.transform.SetParent(canvasObj.transform, false);
+            Button btn = toggleBtnObj.AddComponent<Button>();
+            Image img = toggleBtnObj.AddComponent<Image>();
+            img.color = Color.white;
+            RectTransform btnRt = toggleBtnObj.GetComponent<RectTransform>();
+            btnRt.anchorMin = new Vector2(1, 1);
+            btnRt.anchorMax = new Vector2(1, 1);
+            btnRt.pivot = new Vector2(1, 1);
+            btnRt.anchoredPosition = new Vector2(-20, -20);
+            btnRt.sizeDelta = new Vector2(100, 50);
+
+            GameObject btnTextObj = new GameObject("Text");
+            btnTextObj.transform.SetParent(toggleBtnObj.transform, false);
+            TextMeshProUGUI btnText = btnTextObj.AddComponent<TextMeshProUGUI>();
+            btnText.text = "カバン";
+            btnText.color = Color.black;
+            btnText.alignment = TextAlignmentOptions.Center;
+            btnText.fontSize = 24;
+            if (fontAsset != null) btnText.font = fontAsset;
+            RectTransform btnTextRt = btnTextObj.GetComponent<RectTransform>();
+            btnTextRt.anchorMin = Vector2.zero;
+            btnTextRt.anchorMax = Vector2.one;
+            btnTextRt.sizeDelta = Vector2.zero;
+        }
+
+        GameObject panelObj = GameObject.Find("InventoryPanel");
+        if (panelObj == null)
+        {
+            panelObj = new GameObject("InventoryPanel");
+            panelObj.transform.SetParent(canvasObj.transform, false);
+            Image bgImg = panelObj.AddComponent<Image>();
+            bgImg.color = new Color(0, 0, 0, 0.8f);
+            RectTransform panelRt = panelObj.GetComponent<RectTransform>();
+            panelRt.anchorMin = new Vector2(0.5f, 0.5f);
+            panelRt.anchorMax = new Vector2(0.5f, 0.5f);
+            panelRt.pivot = new Vector2(0.5f, 0.5f);
+            panelRt.sizeDelta = new Vector2(400, 300);
+            
+            GameObject contentTextObj = new GameObject("InventoryText");
+            contentTextObj.transform.SetParent(panelObj.transform, false);
+            TextMeshProUGUI contentText = contentTextObj.AddComponent<TextMeshProUGUI>();
+            contentText.text = "所持品:\n(なし)";
+            contentText.color = Color.white;
+            contentText.alignment = TextAlignmentOptions.TopLeft;
+            contentText.fontSize = 24;
+            if (fontAsset != null) contentText.font = fontAsset;
+            RectTransform textRt = contentTextObj.GetComponent<RectTransform>();
+            textRt.anchorMin = Vector2.zero;
+            textRt.anchorMax = Vector2.one;
+            textRt.sizeDelta = new Vector2(-40, -40);
+            
+            panelObj.SetActive(false);
+        }
+
+        InventoryUI invUI = canvasObj.GetComponent<InventoryUI>();
+        if (invUI == null) invUI = canvasObj.AddComponent<InventoryUI>();
+        invUI.inventoryPanel = panelObj;
+        invUI.inventoryText = panelObj.transform.Find("InventoryText").GetComponent<TextMeshProUGUI>();
+        invUI.player = Object.FindFirstObjectByType<PlayerController>();
+
+        Button toggleBtn = toggleBtnObj.GetComponent<Button>();
+        UnityEditor.Events.UnityEventTools.RemovePersistentListener(toggleBtn.onClick, invUI.ToggleInventory);
+        UnityEditor.Events.UnityEventTools.AddPersistentListener(toggleBtn.onClick, invUI.ToggleInventory);
+
+        // 10. KanjiWood Prefab
+        GameObject prefabAsset = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/KanjiWood.prefab");
+        if (prefabAsset == null)
+        {
+            GameObject tempWood = new GameObject("KanjiWood");
+            tempWood.AddComponent<KanjiBlock>();
+            BoxCollider2D kanjiBc = tempWood.AddComponent<BoxCollider2D>();
+            kanjiBc.size = new Vector2(1, 1);
+            
+            GameObject textObj = new GameObject("KanjiText");
+            textObj.transform.SetParent(tempWood.transform, false);
+            TextMeshPro textMesh = textObj.AddComponent<TextMeshPro>();
+            textMesh.text = "木";
+            textMesh.color = Color.black;
+            textMesh.alignment = TextAlignmentOptions.Center;
+            textMesh.fontSize = 4;
+            textMesh.rectTransform.sizeDelta = new Vector2(1, 1);
+            if (fontAsset != null) textMesh.font = fontAsset;
+
+            prefabAsset = PrefabUtility.SaveAsPrefabAsset(tempWood, "Assets/KanjiWood.prefab");
+            Object.DestroyImmediate(tempWood);
+        }
+        
+        if (wg != null)
+        {
+            wg.kanjiWoodPrefab = prefabAsset;
+            EditorUtility.SetDirty(wg);
+        }
+
+        // 11. Camera Fix (Force strict 2D Orthographic)
         Camera cam = Camera.main;
         if (cam != null)
         {

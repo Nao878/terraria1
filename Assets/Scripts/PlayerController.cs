@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
+using System.Collections.Generic;
 
 [RequireComponent(typeof(Rigidbody2D))]
 public class PlayerController : MonoBehaviour
@@ -8,6 +9,7 @@ public class PlayerController : MonoBehaviour
     public float jumpForce = 12f;
     public Transform groundCheck;
     public LayerMask groundLayer;
+    public List<string> collectedKanji = new List<string>();
 
     private Rigidbody2D rb;
     private bool isGrounded;
