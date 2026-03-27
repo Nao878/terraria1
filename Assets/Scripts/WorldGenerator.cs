@@ -17,6 +17,7 @@ public class WorldGenerator : MonoBehaviour
     public TileBase wallTile;
     public TileBase kanjiWoodTile;
     public GameObject kanjiWoodPrefab;
+    public GameObject kanjiGoldPrefab;
 
     public bool isGenerated { get; private set; }
 
@@ -55,7 +56,14 @@ public class WorldGenerator : MonoBehaviour
             // 完全に groundTile で埋め尽くす（穴なし）
             for (int y = 0; y < currentHeight; y++)
             {
-                groundTilemap.SetTile(new Vector3Int(x, y, 0), groundTile);
+                if (kanjiGoldPrefab != null && UnityEngine.Random.value < 0.05f)
+                {
+                    Instantiate(kanjiGoldPrefab, new Vector3(x + 0.5f, y + 0.5f, 0), Quaternion.identity);
+                }
+                else
+                {
+                    groundTilemap.SetTile(new Vector3Int(x, y, 0), groundTile);
+                }
                 tileCount++;
             }
         }

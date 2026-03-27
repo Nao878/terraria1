@@ -39,7 +39,8 @@ public class BlockInteraction : MonoBehaviour
                     InventoryUI invUI = Object.FindFirstObjectByType<InventoryUI>();
                     if (invUI != null && invUI.inventoryPanel.activeSelf)
                     {
-                        invUI.inventoryText.text = "所持品:\n" + string.Join("\n", pc.collectedKanji);
+                        invUI.inventoryPanel.SetActive(false);
+                        invUI.ToggleInventory();
                     }
                 }
                 return;
@@ -66,21 +67,33 @@ public class BlockInteraction : MonoBehaviour
             if (Mouse.current.leftButton.wasPressedThisFrame)
             {
                 Collider2D col = Physics2D.OverlapPoint(worldPos);
-                if (col != null && col.GetComponent<KanjiBlock>() != null)
+                if (col != null)
                 {
-                    Destroy(col.gameObject);
-                    PlayerController pc = GetComponent<PlayerController>();
-                    if (pc != null)
+                    KanjiBlock kanjiBlock = col.GetComponent<KanjiBlock>();
+                    if (kanjiBlock != null)
                     {
-                        pc.collectedKanji.Add("木");
-                        Debug.Log($"『木』のプレハブパーツを取得しました！現在所持数: {pc.collectedKanji.Count}");
-                        InventoryUI invUI = Object.FindFirstObjectByType<InventoryUI>();
-                        if (invUI != null && invUI.inventoryPanel.activeSelf)
+                        PlayerController pc = GetComponent<PlayerController>();
+                        if (pc != null)
                         {
-                            invUI.inventoryText.text = "所持品:\n" + string.Join("\n", pc.collectedKanji);
+                            if (pc.collectedKanji.Count >= 9)
+                            {
+                                Debug.Log("インベントリがいっぱいです");
+                                return;
+                            }
+
+                            Destroy(col.gameObject);
+                            string character = string.IsNullOrEmpty(kanjiBlock.kanjiCharacter) ? "木" : kanjiBlock.kanjiCharacter;
+                            pc.collectedKanji.Add(character);
+                            Debug.Log($"『{character}』のプレハブパーツを取得しました！現在所持数: {pc.collectedKanji.Count}");
+                            InventoryUI invUI = Object.FindFirstObjectByType<InventoryUI>();
+                            if (invUI != null && invUI.inventoryPanel.activeSelf)
+                            {
+                                invUI.inventoryPanel.SetActive(false);
+                                invUI.ToggleInventory();
+                            }
                         }
+                        return;
                     }
-                    return;
                 }
 
                 TileBase targetTile = groundTilemap.GetTile(cellPos);

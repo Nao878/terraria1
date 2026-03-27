@@ -252,34 +252,60 @@ public class SetupHelper : MonoBehaviour
         {
             panelObj = new GameObject("InventoryPanel");
             panelObj.transform.SetParent(canvasObj.transform, false);
-            Image bgImg = panelObj.AddComponent<Image>();
-            bgImg.color = new Color(0, 0, 0, 0.8f);
-            RectTransform panelRt = panelObj.GetComponent<RectTransform>();
-            panelRt.anchorMin = new Vector2(0.5f, 0.5f);
-            panelRt.anchorMax = new Vector2(0.5f, 0.5f);
-            panelRt.pivot = new Vector2(0.5f, 0.5f);
-            panelRt.sizeDelta = new Vector2(400, 300);
-            
-            GameObject contentTextObj = new GameObject("InventoryText");
-            contentTextObj.transform.SetParent(panelObj.transform, false);
-            TextMeshProUGUI contentText = contentTextObj.AddComponent<TextMeshProUGUI>();
-            contentText.text = "所持品:\n(なし)";
-            contentText.color = Color.white;
-            contentText.alignment = TextAlignmentOptions.TopLeft;
-            contentText.fontSize = 24;
-            if (fontAsset != null) contentText.font = fontAsset;
-            RectTransform textRt = contentTextObj.GetComponent<RectTransform>();
+            panelObj.AddComponent<Image>().color = new Color(0, 0, 0, 0.8f);
+        }
+
+        RectTransform panelRt = panelObj.GetComponent<RectTransform>();
+        panelRt.anchorMin = new Vector2(0.5f, 0.5f);
+        panelRt.anchorMax = new Vector2(0.5f, 0.5f);
+        panelRt.pivot = new Vector2(0.5f, 0.5f);
+        panelRt.sizeDelta = new Vector2(300, 300);
+
+        GridLayoutGroup grid = panelObj.GetComponent<GridLayoutGroup>();
+        if (grid == null) grid = panelObj.AddComponent<GridLayoutGroup>();
+        grid.cellSize = new Vector2(80, 80);
+        grid.spacing = new Vector2(10, 10);
+        grid.padding = new RectOffset(20, 20, 20, 20);
+        grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
+        grid.constraintCount = 3;
+
+        // Cleanup legacy text
+        Transform legacyText = panelObj.transform.Find("InventoryText");
+        if (legacyText != null) Object.DestroyImmediate(legacyText.gameObject);
+
+        panelObj.SetActive(false);
+
+        GameObject slotPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/InventorySlot.prefab");
+        if (slotPrefab == null)
+        {
+            GameObject tempSlot = new GameObject("InventorySlot");
+            RectTransform slotRt = tempSlot.AddComponent<RectTransform>();
+            slotRt.sizeDelta = new Vector2(80, 80);
+            Image slotImg = tempSlot.AddComponent<Image>();
+            slotImg.color = new Color(0.3f, 0.3f, 0.3f, 1f);
+
+            GameObject textObj = new GameObject("Text");
+            textObj.transform.SetParent(tempSlot.transform, false);
+            TextMeshProUGUI slotText = textObj.AddComponent<TextMeshProUGUI>();
+            slotText.text = "木";
+            slotText.color = Color.white;
+            slotText.alignment = TextAlignmentOptions.Center | TextAlignmentOptions.Midline;
+            slotText.fontSize = 40;
+            if (fontAsset != null) slotText.font = fontAsset;
+            RectTransform textRt = textObj.GetComponent<RectTransform>();
             textRt.anchorMin = Vector2.zero;
             textRt.anchorMax = Vector2.one;
-            textRt.sizeDelta = new Vector2(-40, -40);
-            
-            panelObj.SetActive(false);
+            textRt.sizeDelta = Vector2.zero;
+
+            slotPrefab = PrefabUtility.SaveAsPrefabAsset(tempSlot, "Assets/InventorySlot.prefab");
+            Object.DestroyImmediate(tempSlot);
         }
 
         InventoryUI invUI = canvasObj.GetComponent<InventoryUI>();
         if (invUI == null) invUI = canvasObj.AddComponent<InventoryUI>();
         invUI.inventoryPanel = panelObj;
-        invUI.inventoryText = panelObj.transform.Find("InventoryText").GetComponent<TextMeshProUGUI>();
+        invUI.gridParent = panelObj.transform;
+        invUI.slotPrefab = slotPrefab;
         invUI.player = Object.FindFirstObjectByType<PlayerController>();
 
         Button toggleBtn = toggleBtnObj.GetComponent<Button>();
@@ -291,7 +317,8 @@ public class SetupHelper : MonoBehaviour
         if (prefabAsset == null)
         {
             GameObject tempWood = new GameObject("KanjiWood");
-            tempWood.AddComponent<KanjiBlock>();
+            KanjiBlock kbWood = tempWood.AddComponent<KanjiBlock>();
+            kbWood.kanjiCharacter = "木";
             BoxCollider2D kanjiBc = tempWood.AddComponent<BoxCollider2D>();
             kanjiBc.size = new Vector2(1, 1);
             
@@ -300,18 +327,51 @@ public class SetupHelper : MonoBehaviour
             TextMeshPro textMesh = textObj.AddComponent<TextMeshPro>();
             textMesh.text = "木";
             textMesh.color = Color.black;
-            textMesh.alignment = TextAlignmentOptions.Center;
-            textMesh.fontSize = 4;
+            textMesh.alignment = TextAlignmentOptions.Center | TextAlignmentOptions.Midline;
+            textMesh.fontSize = 8;
+            textMesh.rectTransform.pivot = new Vector2(0.5f, 0.5f);
+            textMesh.rectTransform.localPosition = Vector3.zero;
+            textMesh.margin = Vector4.zero;
             textMesh.rectTransform.sizeDelta = new Vector2(1, 1);
+            textMesh.GetComponent<MeshRenderer>().sortingOrder = 5;
             if (fontAsset != null) textMesh.font = fontAsset;
 
             prefabAsset = PrefabUtility.SaveAsPrefabAsset(tempWood, "Assets/KanjiWood.prefab");
             Object.DestroyImmediate(tempWood);
         }
+
+        // 11. KanjiGold Prefab
+        GameObject goldPrefabAsset = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/KanjiGold.prefab");
+        if (goldPrefabAsset == null)
+        {
+            GameObject tempGold = new GameObject("KanjiGold");
+            KanjiBlock kbGold = tempGold.AddComponent<KanjiBlock>();
+            kbGold.kanjiCharacter = "金";
+            BoxCollider2D goldBc = tempGold.AddComponent<BoxCollider2D>();
+            goldBc.size = new Vector2(1, 1);
+            
+            GameObject textObj = new GameObject("KanjiText");
+            textObj.transform.SetParent(tempGold.transform, false);
+            TextMeshPro textMesh = textObj.AddComponent<TextMeshPro>();
+            textMesh.text = "金";
+            textMesh.color = new Color(1f, 0.84f, 0f); // #FFD700
+            textMesh.alignment = TextAlignmentOptions.Center | TextAlignmentOptions.Midline;
+            textMesh.fontSize = 8;
+            textMesh.rectTransform.pivot = new Vector2(0.5f, 0.5f);
+            textMesh.rectTransform.localPosition = Vector3.zero;
+            textMesh.margin = Vector4.zero;
+            textMesh.rectTransform.sizeDelta = new Vector2(1, 1);
+            textMesh.GetComponent<MeshRenderer>().sortingOrder = 5;
+            if (fontAsset != null) textMesh.font = fontAsset;
+
+            goldPrefabAsset = PrefabUtility.SaveAsPrefabAsset(tempGold, "Assets/KanjiGold.prefab");
+            Object.DestroyImmediate(tempGold);
+        }
         
         if (wg != null)
         {
             wg.kanjiWoodPrefab = prefabAsset;
+            wg.kanjiGoldPrefab = goldPrefabAsset;
             EditorUtility.SetDirty(wg);
         }
 

@@ -1,12 +1,11 @@
 using UnityEngine;
 using TMPro;
-using System.Collections.Generic;
-using System.Linq;
 
 public class InventoryUI : MonoBehaviour
 {
     public GameObject inventoryPanel;
-    public TextMeshProUGUI inventoryText;
+    public Transform gridParent;
+    public GameObject slotPrefab;
     public PlayerController player;
 
     public void ToggleInventory()
@@ -16,15 +15,21 @@ public class InventoryUI : MonoBehaviour
             bool isActive = !inventoryPanel.activeSelf;
             inventoryPanel.SetActive(isActive);
 
-            if (isActive && inventoryText != null && player != null)
+            if (isActive && gridParent != null && slotPrefab != null && player != null)
             {
-                if (player.collectedKanji.Count == 0)
+                foreach (Transform child in gridParent)
                 {
-                    inventoryText.text = "所持品:\n(なし)";
+                    Destroy(child.gameObject);
                 }
-                else
+
+                foreach (string kanji in player.collectedKanji)
                 {
-                    inventoryText.text = "所持品:\n" + string.Join("\n", player.collectedKanji);
+                    GameObject slot = Instantiate(slotPrefab, gridParent);
+                    TextMeshProUGUI txt = slot.GetComponentInChildren<TextMeshProUGUI>();
+                    if (txt != null)
+                    {
+                        txt.text = kanji;
+                    }
                 }
             }
         }
