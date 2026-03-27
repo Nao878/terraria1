@@ -15,9 +15,8 @@ public class WorldGenerator : MonoBehaviour
     public Tilemap backgroundTilemap;
     public TileBase groundTile;
     public TileBase wallTile;
-    public TileBase kanjiWoodTile;
-    public GameObject kanjiWoodPrefab;
-    public GameObject kanjiGoldPrefab;
+    public TileBase kiTile;
+    public TileBase kinTile;
 
     public bool isGenerated = false;
 
@@ -41,24 +40,18 @@ public class WorldGenerator : MonoBehaviour
         int tileCount = 0;
         int maxTerrainHeight = 0;
 
-        // Clean up old KanjiBlocks
-        KanjiBlock[] oldBlocks = Object.FindObjectsByType<KanjiBlock>(FindObjectsSortMode.None);
-        foreach (var block in oldBlocks)
-        {
-            if (Application.isPlaying) Destroy(block.gameObject); else DestroyImmediate(block.gameObject);
-        }
+        // Legacy KanjiBlock cleanup is no longer needed as we use Tilemap.ClearAllTiles()
 
         for (int x = 0; x < width; x++)
         {
             int currentHeight = GetNoiseHeight(x);
             if (currentHeight > maxTerrainHeight) maxTerrainHeight = currentHeight;
 
-            // 完全に groundTile で埋め尽くす（穴なし）
             for (int y = 0; y < currentHeight; y++)
             {
-                if (kanjiGoldPrefab != null && UnityEngine.Random.value < 0.05f)
+                if (kinTile != null && UnityEngine.Random.value < 0.05f)
                 {
-                    Instantiate(kanjiGoldPrefab, new Vector3(x + 0.5f, y + 0.5f, 0), Quaternion.identity);
+                    groundTilemap.SetTile(new Vector3Int(x, y, 0), kinTile);
                 }
                 else
                 {
@@ -70,18 +63,17 @@ public class WorldGenerator : MonoBehaviour
 
         for (int x = 0; x < width; x++)
         {
-            // Center platform should preferably not have trees so the player doesn't get blocked
             int tempCenterX = width / 2;
             if (Mathf.Abs(x - tempCenterX) <= 3) continue;
 
-            if (kanjiWoodPrefab != null && UnityEngine.Random.value < 0.05f)
+            if (kiTile != null && UnityEngine.Random.value < 0.05f)
             {
                 int tempPlatformY = GetNoiseHeight(x);
                 int stack = UnityEngine.Random.Range(2, 4);
                 for (int i = 0; i < stack; i++)
                 {
-                    Vector3 pos = new Vector3(x + 0.5f, tempPlatformY + i + 0.5f, 0);
-                    Instantiate(kanjiWoodPrefab, pos, Quaternion.identity);
+                    Vector3Int cellPos = new Vector3Int(x, tempPlatformY + i, 0);
+                    groundTilemap.SetTile(cellPos, kiTile);
                 }
             }
         }

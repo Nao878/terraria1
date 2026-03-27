@@ -1,5 +1,7 @@
 using UnityEngine;
 using TMPro;
+using UnityEngine.UI;
+using System.Collections.Generic;
 
 public class InventoryUI : MonoBehaviour
 {
@@ -7,46 +9,71 @@ public class InventoryUI : MonoBehaviour
     public Transform gridParent;
     public GameObject slotPrefab;
     public PlayerController player;
+    
+    private List<GameObject> slots = new List<GameObject>();
+    private int lastSelectedIndex = -1;
 
     void Start()
     {
-        if (player != null && player.collectedKanji.Count == 0)
+        // Setup initial 9 slots
+        if (gridParent != null && slotPrefab != null)
         {
-            player.collectedKanji.Add("木");
+            foreach (Transform child in gridParent) Destroy(child.gameObject);
+            
+            for (int i = 0; i < 9; i++)
+            {
+                GameObject slot = Instantiate(slotPrefab, gridParent);
+                slots.Add(slot);
+            }
         }
-        if (inventoryPanel != null)
+    }
+
+    void Update()
+    {
+        if (player == null) return;
+
+        // Update Slot Contents
+        for (int i = 0; i < 9; i++)
         {
-            inventoryPanel.SetActive(false); // Initially closed
+            if (i >= slots.Count) break;
+            
+            TextMeshProUGUI txt = slots[i].GetComponentInChildren<TextMeshProUGUI>();
+            if (txt != null)
+            {
+                if (i < player.collectedKanji.Count)
+                {
+                    txt.text = player.collectedKanji[i];
+                    // Ensure Wood is brownish if needed, though color can be set in SetupHelper
+                }
+                else
+                {
+                    txt.text = "";
+                }
+            }
+
+            // Highlighting
+            Image img = slots[i].GetComponent<Image>();
+            if (img != null)
+            {
+                if (i == player.selectedIndex)
+                {
+                    img.color = new Color(1, 1, 0, 0.5f); // Yellow highlight
+                }
+                else
+                {
+                    img.color = new Color(0.2f, 0.2f, 0.2f, 0.8f); // Default dark
+                }
+            }
         }
     }
 
     public void ToggleInventory()
     {
+        // Toggle is no longer needed if it's a persistent hotbar, 
+        // but keeping the method for compatibility with existing UI buttons.
         if (inventoryPanel != null)
         {
-            bool isActive = !inventoryPanel.activeSelf;
-            inventoryPanel.SetActive(isActive);
-
-            if (isActive && gridParent != null && slotPrefab != null && player != null)
-            {
-                foreach (Transform child in gridParent)
-                {
-                    Destroy(child.gameObject);
-                }
-
-                foreach (string kanji in player.collectedKanji)
-                {
-                    GameObject slot = Instantiate(slotPrefab, gridParent);
-                    TextMeshProUGUI txt = slot.GetComponentInChildren<TextMeshProUGUI>();
-                    if (txt != null)
-                    {
-                        txt.text = kanji;
-                        txt.horizontalAlignment = HorizontalAlignmentOptions.Center;
-                        txt.verticalAlignment = VerticalAlignmentOptions.Middle;
-                        txt.ForceMeshUpdate(true);
-                    }
-                }
-            }
+            inventoryPanel.SetActive(!inventoryPanel.activeSelf);
         }
     }
 }

@@ -6,15 +6,14 @@ public class BlockInteraction : MonoBehaviour
 {
     public Tilemap groundTilemap;
     public TileBase groundTile;
-    public TileBase kanjiWoodTile;
-    public bool simulateBreakKanji = false;
+    public TileBase kiTile;
+    public TileBase kinTile;
     private Camera mainCamera;
 
     void Start()
     {
         mainCamera = Camera.main;
         
-        // Auto-assign references if they are missing
         if (groundTilemap == null)
         {
             GameObject groundObj = GameObject.Find("GroundTilemap");
@@ -24,39 +23,12 @@ public class BlockInteraction : MonoBehaviour
 
     void Update()
     {
-        if (simulateBreakKanji)
-        {
-            simulateBreakKanji = false;
-            KanjiBlock[] blocks = Object.FindObjectsByType<KanjiBlock>(FindObjectsSortMode.None);
-            if (blocks.Length > 0)
-            {
-                Destroy(blocks[0].gameObject);
-                PlayerController pc = GetComponent<PlayerController>();
-                if (pc != null)
-                {
-                    pc.collectedKanji.Add("木");
-                    Debug.Log($"『木』のプレハブパーツを取得しました！現在所持数: {pc.collectedKanji.Count}");
-                    InventoryUI invUI = Object.FindFirstObjectByType<InventoryUI>();
-                    if (invUI != null && invUI.inventoryPanel.activeSelf)
-                    {
-                        invUI.inventoryPanel.SetActive(false);
-                        invUI.ToggleInventory();
-                    }
-                }
-                return;
-            }
-            Debug.Log("シミュレーション失敗：KanjiWoodプレハブが見つかりませんでした。");
-        }
-
         if (mainCamera == null || groundTilemap == null || Mouse.current == null) return;
 
-        // Step 2: Coordinate conversion with rigid Z-correction
         Vector2 mouseInput = Mouse.current.position.ReadValue();
-        // Use a non-zero Z for ScreenToWorldPoint to avoid camera-plane issues (10 is standard for 2D)
         Vector3 worldPos = mainCamera.ScreenToWorldPoint(new Vector3(mouseInput.x, mouseInput.y, 10f));
-        worldPos.z = 0f; // Force Z to 0 exactly as requested
+        worldPos.z = 0f;
 
-        // Step 3: Reach distance check
         float distance = Vector2.Distance(transform.position, worldPos);
 
         if (distance <= 5.0f)
@@ -66,39 +38,36 @@ public class BlockInteraction : MonoBehaviour
             // Left Click: Break
             if (Mouse.current.leftButton.wasPressedThisFrame)
             {
-                Collider2D col = Physics2D.OverlapPoint(worldPos);
-                if (col != null)
+                TileBase targetTile = groundTilemap.GetTile(cellPos);
+                if (targetTile != null)
                 {
-                    KanjiBlock kanjiBlock = col.GetComponent<KanjiBlock>();
-                    if (kanjiBlock != null)
+                    PlayerController pc = GetComponent<PlayerController>();
+                    if (pc != null)
                     {
-                        PlayerController pc = GetComponent<PlayerController>();
-                        if (pc != null)
+                        string character = "";
+                        if (targetTile == kiTile) character = "木";
+                        else if (targetTile == kinTile) character = "金";
+                        
+                        if (!string.IsNullOrEmpty(character))
                         {
                             if (pc.collectedKanji.Count >= 9)
                             {
                                 Debug.Log("インベントリがいっぱいです");
                                 return;
                             }
-
-                            Destroy(col.gameObject);
-                            string character = string.IsNullOrEmpty(kanjiBlock.kanjiCharacter) ? "木" : kanjiBlock.kanjiCharacter;
                             pc.collectedKanji.Add(character);
-                            Debug.Log($"『{character}』のプレハブパーツを取得しました！現在所持数: {pc.collectedKanji.Count}");
+                            Debug.Log($"『{character}』を取得しました！現在所持数: {pc.collectedKanji.Count}");
+                            
+                            // Reload UI if needed
                             InventoryUI invUI = Object.FindFirstObjectByType<InventoryUI>();
                             if (invUI != null && invUI.inventoryPanel.activeSelf)
                             {
-                                invUI.inventoryPanel.SetActive(false);
+                                invUI.ToggleInventory(); // Refresh view
                                 invUI.ToggleInventory();
                             }
                         }
-                        return;
                     }
-                }
-
-                TileBase targetTile = groundTilemap.GetTile(cellPos);
-                if (targetTile != null)
-                {
+                    
                     groundTilemap.SetTile(cellPos, null);
                     Debug.Log($"Broken block at: {cellPos}");
                 }
@@ -106,10 +75,37 @@ public class BlockInteraction : MonoBehaviour
             // Right Click: Place
             else if (Mouse.current.rightButton.wasPressedThisFrame)
             {
-                if (groundTile != null && groundTilemap.GetTile(cellPos) == null)
+                PlayerController pc = GetComponent<PlayerController>();
+                if (pc != null && pc.collectedKanji.Count > 0 && groundTilemap.GetTile(cellPos) == null)
+                {
+                    // For now, place the last collected one just to test
+                    // Phase 4 will use selectedIndex from Hotbar
+                    string kanjiToPlace = pc.collectedKanji[pc.collectedKanji.Count - 1];
+                    TileBase tileToPlace = null;
+                    if (kanjiToPlace == "木") tileToPlace = kiTile;
+                    else if (kanjiToPlace == "金") tileToPlace = kinTile;
+                    
+                    if (tileToPlace != null)
+                    {
+                        groundTilemap.SetTile(cellPos, tileToPlace);
+                        pc.collectedKanji.RemoveAt(pc.collectedKanji.Count - 1);
+                        Debug.Log($"Placed {kanjiToPlace} at: {cellPos}");
+                        
+                        InventoryUI invUI = Object.FindFirstObjectByType<InventoryUI>();
+                        if (invUI != null && invUI.inventoryPanel.activeSelf)
+                        {
+                            invUI.ToggleInventory(); // Refresh view
+                            invUI.ToggleInventory();
+                        }
+                    }
+                    else if (groundTile != null) // Fallback to dirt
+                    {
+                        groundTilemap.SetTile(cellPos, groundTile);
+                    }
+                }
+                else if (groundTile != null && groundTilemap.GetTile(cellPos) == null)
                 {
                     groundTilemap.SetTile(cellPos, groundTile);
-                    Debug.Log($"Placed block at: {cellPos}");
                 }
             }
         }

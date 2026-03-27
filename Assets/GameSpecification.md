@@ -1,30 +1,28 @@
-# 2D Sandbox System Specification
+# Game Specification (自動生成)
 
-This document summarizes the technical specifications and features of the 2D sandbox system implemented in Unity.
+## 概要
+本作は「テラリア型アクション」と「漢字クラフト」を融合させたサイドビュー（横視点）2Dサンドボックスゲームです。
 
-## Core Features
+## コアシステム
+1. **サイドビュー2Dアクション**:
+   - プレイヤーは左右移動、ジャンプが可能。
+   - 物理エンジンにより、滑らかな移動と衝突判定を実現。
+   - CapsuleCollider2D と CompositeCollider2D により、タイルの継ぎ目（ゴーストコリジョン）を排除。
+2. **漢字クラフトシステム**:
+   - 地形に含まれる「漢字ブロック（木、金など）」を採掘可能。
+   - 採掘した漢字はデータとしてインベントリに格納。
+3. **インベントリシステム**:
+   - 最大9スロット（3x3グリッド）のインベントリ。
+   - UI上で収集した漢字を視覚的に管理。
+4. **環境**:
+   - 地上にはツリー状の「木」ブロック、地下には「金」鉱石が生成。
+   - マウスホイールによるカメラズーム機能を搭載（距離5〜15）。
+5. **設備**:
+   - 自動生成装置（ジェネレーター）による漢字パーツの供給。
 
-### 1. 2D Tilemap システム
-- **Ground Tilemap**: 地形（土ブロック）用。衝突判定（TilemapCollider2D）付き。
-- **Background Tilemap**: 背景（壁ブロック）用。
-- **WorldGenerator**:
-    - Perlin Noise を使用した地形生成。
-    - 幅100、高さ50のマスの範囲で地形を生成。
-    - `Setup/Run Initial Setup` メニューから即座に再生成可能。
+## 今後の展望
+- **動く拠点**: 漢字を組み合わせて機能を持たせた「移動可能な拠点」の構築フェーズ。
+- **合成システム**: 漢字パーツを組み合わせて新しい漢字やアイテムを作成する仕組み。
 
-### 2. PlayerController
-- **物理挙動**: `Rigidbody2D` を使用。重力スケールを調整し、テラリアのような少しフワッとしたジャンプを実現。
-- **操作**: A/D または矢印キーで左右移動、Space キーでジャンプ。
-- **接地判定**: 足元の `GroundCheck` オブジェクトによる円形判定。
-
-### 3. BlockInteraction
-- **左クリック**: プレイヤーの周囲5ブロック以内の「Ground」タイルを破壊。
-- **右クリック**: プレイヤーの周囲5ブロック以内の空地に「DirtTile」を設置。
-
-## Technical Details
-- **Scripts**:
-  - `WorldGenerator.cs`: Handles startup terrain generation.
-  - `PlayerController.cs`: Handles input and physics for the player.
-  - `BlockInteraction.cs`: Handles mouse interaction with the Tilemap.
-- **Prefabs**:
-  - `Player`: Basic character setup with required components.
+---
+*このファイルは `Setup/Execute System Setup` 実行時に自動で更新されます。*

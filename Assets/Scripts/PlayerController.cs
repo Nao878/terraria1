@@ -36,6 +36,32 @@ public class PlayerController : MonoBehaviour
         rb.simulated = true;
     }
 
+    [Header("Hotbar Settings")]
+    public int selectedIndex = 0;
+
+    void HandleHotbarInput()
+    {
+        if (Keyboard.current != null)
+        {
+            for (int i = 0; i < 9; i++)
+            {
+                if (Keyboard.current[(Key)((int)Key.Digit1 + i)].wasPressedThisFrame)
+                {
+                    selectedIndex = i;
+                    Debug.Log($"Selected Slot: {selectedIndex + 1}");
+                }
+            }
+        }
+
+        if (Mouse.current != null)
+        {
+            float scroll = Mouse.current.scroll.ReadValue().y;
+            if (scroll > 0) selectedIndex = (selectedIndex - 1 + 9) % 9;
+            else if (scroll < 0) selectedIndex = (selectedIndex + 1) % 9;
+        }
+    }
+
+
     void Update()
     {
         // New Input System handling (Simple poll for now as script is basic)
@@ -56,6 +82,10 @@ public class PlayerController : MonoBehaviour
 
     void FixedUpdate()
     {
-        rb.linearVelocity = new Vector2(moveInput * moveSpeed, rb.linearVelocity.y);
+        
+
+        // Handle Hotbar Selection
+        HandleHotbarInput();
+rb.linearVelocity = new Vector2(moveInput * moveSpeed, rb.linearVelocity.y);
     }
 }
