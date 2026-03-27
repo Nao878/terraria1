@@ -64,7 +64,8 @@ public class PlayerController : MonoBehaviour
 
     void Update()
     {
-        // New Input System handling (Simple poll for now as script is basic)
+        HandleHotbarInput();
+
         if (Keyboard.current != null)
         {
             moveInput = 0;
@@ -82,10 +83,6 @@ public class PlayerController : MonoBehaviour
 
     void FixedUpdate()
     {
-        
-
-        // Handle Hotbar Selection
-        HandleHotbarInput();
-rb.linearVelocity = new Vector2(moveInput * moveSpeed, rb.linearVelocity.y);
+        rb.linearVelocity = new Vector2(moveInput * moveSpeed, rb.linearVelocity.y);
     }
 }

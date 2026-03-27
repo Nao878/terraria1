@@ -69511,7 +69511,6 @@ GameObject:
   - component: {fileID: 396193423}
   - component: {fileID: 396193426}
   - component: {fileID: 396193427}
-  - component: {fileID: 396193429}
   - component: {fileID: 396193430}
   m_Layer: 0
   m_Name: Player
@@ -69659,18 +69658,6 @@ MonoBehaviour:
   groundTile: {fileID: 11400000, guid: 6aa264f17e125dc40b37b6c012a808e7, type: 2}
   kiTile: {fileID: 11400000, guid: e6d60969993f89c49aacd1bd18fd6b9a, type: 2}
   kinTile: {fileID: 11400000, guid: 783aac15567aac940a0bff673c9acd39, type: 2}
---- !u!114 &396193429
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 396193420}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2a83ee571a1428b4c901779e8ebd1973, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::AutoBreakTest
 --- !u!70 &396193430
 CapsuleCollider2D:
   m_ObjectHideFlags: 0
