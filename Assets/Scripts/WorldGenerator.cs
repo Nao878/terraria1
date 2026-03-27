@@ -19,7 +19,7 @@ public class WorldGenerator : MonoBehaviour
     public GameObject kanjiWoodPrefab;
     public GameObject kanjiGoldPrefab;
 
-    public bool isGenerated { get; private set; }
+    public bool isGenerated = false;
 
     void Awake()
     {

@@ -8,6 +8,18 @@ public class InventoryUI : MonoBehaviour
     public GameObject slotPrefab;
     public PlayerController player;
 
+    void Start()
+    {
+        if (player != null && player.collectedKanji.Count == 0)
+        {
+            player.collectedKanji.Add("木");
+        }
+        if (inventoryPanel != null)
+        {
+            inventoryPanel.SetActive(false); // Initially closed
+        }
+    }
+
     public void ToggleInventory()
     {
         if (inventoryPanel != null)
@@ -29,6 +41,9 @@ public class InventoryUI : MonoBehaviour
                     if (txt != null)
                     {
                         txt.text = kanji;
+                        txt.horizontalAlignment = HorizontalAlignmentOptions.Center;
+                        txt.verticalAlignment = VerticalAlignmentOptions.Middle;
+                        txt.ForceMeshUpdate(true);
                     }
                 }
             }
