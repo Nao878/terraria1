@@ -50,21 +50,13 @@ public class BlockInteraction : MonoBehaviour
                         
                         if (!string.IsNullOrEmpty(character))
                         {
-                            if (pc.collectedKanji.Count >= 9)
+                            if (pc.collectedKanji.Count >= 36)
                             {
                                 Debug.Log("インベントリがいっぱいです");
                                 return;
                             }
                             pc.collectedKanji.Add(character);
                             Debug.Log($"『{character}』を取得しました！現在所持数: {pc.collectedKanji.Count}");
-                            
-                            // Reload UI if needed
-                            InventoryUI invUI = Object.FindFirstObjectByType<InventoryUI>();
-                            if (invUI != null && invUI.inventoryPanel.activeSelf)
-                            {
-                                invUI.ToggleInventory(); // Refresh view
-                                invUI.ToggleInventory();
-                            }
                         }
                     }
                     
@@ -76,11 +68,9 @@ public class BlockInteraction : MonoBehaviour
             else if (Mouse.current.rightButton.wasPressedThisFrame)
             {
                 PlayerController pc = GetComponent<PlayerController>();
-                if (pc != null && pc.collectedKanji.Count > 0 && groundTilemap.GetTile(cellPos) == null)
+                if (pc != null && pc.selectedIndex < pc.collectedKanji.Count && groundTilemap.GetTile(cellPos) == null)
                 {
-                    // For now, place the last collected one just to test
-                    // Phase 4 will use selectedIndex from Hotbar
-                    string kanjiToPlace = pc.collectedKanji[pc.collectedKanji.Count - 1];
+                    string kanjiToPlace = pc.collectedKanji[pc.selectedIndex];
                     TileBase tileToPlace = null;
                     if (kanjiToPlace == "木") tileToPlace = kiTile;
                     else if (kanjiToPlace == "金") tileToPlace = kinTile;
@@ -88,15 +78,8 @@ public class BlockInteraction : MonoBehaviour
                     if (tileToPlace != null)
                     {
                         groundTilemap.SetTile(cellPos, tileToPlace);
-                        pc.collectedKanji.RemoveAt(pc.collectedKanji.Count - 1);
-                        Debug.Log($"Placed {kanjiToPlace} at: {cellPos}");
-                        
-                        InventoryUI invUI = Object.FindFirstObjectByType<InventoryUI>();
-                        if (invUI != null && invUI.inventoryPanel.activeSelf)
-                        {
-                            invUI.ToggleInventory(); // Refresh view
-                            invUI.ToggleInventory();
-                        }
+                        pc.collectedKanji.RemoveAt(pc.selectedIndex);
+                        Debug.Log($"Placed {kanjiToPlace} from slot {pc.selectedIndex + 1} at: {cellPos}");
                     }
                     else if (groundTile != null) // Fallback to dirt
                     {
