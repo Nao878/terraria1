@@ -67,28 +67,40 @@ public class BlockInteraction : MonoBehaviour
             // Right Click: Place
             else if (Mouse.current.rightButton.wasPressedThisFrame)
             {
-                PlayerController pc = GetComponent<PlayerController>();
-                if (pc != null && pc.selectedIndex < pc.collectedKanji.Count && groundTilemap.GetTile(cellPos) == null)
+                if (groundTilemap.GetTile(cellPos) == null)
                 {
-                    string kanjiToPlace = pc.collectedKanji[pc.selectedIndex];
-                    TileBase tileToPlace = null;
-                    if (kanjiToPlace == "木") tileToPlace = kiTile;
-                    else if (kanjiToPlace == "金") tileToPlace = kinTile;
-                    
-                    if (tileToPlace != null)
+                    // Check if player is in the way
+                    Vector3 center = groundTilemap.GetCellCenterWorld(cellPos);
+                    Collider2D hit = Physics2D.OverlapBox(center, new Vector2(0.9f, 0.9f), 0f);
+                    if (hit != null && hit.CompareTag("Player"))
                     {
-                        groundTilemap.SetTile(cellPos, tileToPlace);
-                        pc.collectedKanji.RemoveAt(pc.selectedIndex);
-                        Debug.Log($"Placed {kanjiToPlace} from slot {pc.selectedIndex + 1} at: {cellPos}");
+                        Debug.Log("プレイヤーが重なっているため設置できません");
+                        return;
                     }
-                    else if (groundTile != null) // Fallback to dirt
+
+                    PlayerController pc = GetComponent<PlayerController>();
+                    if (pc != null && pc.selectedIndex < pc.collectedKanji.Count)
+                    {
+                        string kanjiToPlace = pc.collectedKanji[pc.selectedIndex];
+                        TileBase tileToPlace = null;
+                        if (kanjiToPlace == "木") tileToPlace = kiTile;
+                        else if (kanjiToPlace == "金") tileToPlace = kinTile;
+                        
+                        if (tileToPlace != null)
+                        {
+                            groundTilemap.SetTile(cellPos, tileToPlace);
+                            pc.collectedKanji.RemoveAt(pc.selectedIndex);
+                            Debug.Log($"Placed {kanjiToPlace} from slot {pc.selectedIndex + 1} at: {cellPos}");
+                        }
+                        else if (groundTile != null) // Fallback to dirt
+                        {
+                            groundTilemap.SetTile(cellPos, groundTile);
+                        }
+                    }
+                    else if (groundTile != null)
                     {
                         groundTilemap.SetTile(cellPos, groundTile);
                     }
-                }
-                else if (groundTile != null && groundTilemap.GetTile(cellPos) == null)
-                {
-                    groundTilemap.SetTile(cellPos, groundTile);
                 }
             }
         }

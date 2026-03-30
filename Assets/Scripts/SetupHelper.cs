@@ -59,6 +59,7 @@ public class SetupHelper : MonoBehaviour
 
         // 3. Setup Player
         GameObject player = GameObject.Find("Player") ?? new GameObject("Player");
+        player.tag = "Player";
         if (player.GetComponent<SpriteRenderer>() == null)
         {
             var sr = player.AddComponent<SpriteRenderer>();
