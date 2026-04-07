@@ -1,6 +1,11 @@
 using UnityEngine;
 using UnityEngine.EventSystems;
 
+/// <summary>
+/// インベントリスロット。IDropHandler でドロップを受け取り、
+/// データモデル（PlayerController.collectedKanji）のみスワップする。
+/// UI の反映は InventoryUI.Update に委譲。
+/// </summary>
 public class InventorySlot : MonoBehaviour, IDropHandler
 {
     public int slotIndex; // 0-35
@@ -14,24 +19,25 @@ public class InventorySlot : MonoBehaviour, IDropHandler
 
     public void OnDrop(PointerEventData eventData)
     {
-        if (eventData.pointerDrag != null)
+        if (eventData.pointerDrag == null) return;
+
+        DraggableItem draggedItem = eventData.pointerDrag.GetComponent<DraggableItem>();
+        if (draggedItem == null || player == null) return;
+
+        int fromIndex = draggedItem.slotIndex;
+        int toIndex = slotIndex;
+
+        // 同じスロットへのドロップは何もしない
+        if (fromIndex == toIndex) return;
+
+        // データモデルのみスワップ
+        if (fromIndex < player.collectedKanji.Count && toIndex < player.collectedKanji.Count)
         {
-            DraggableItem draggedItem = eventData.pointerDrag.GetComponent<DraggableItem>();
-            if (draggedItem != null && player != null)
-            {
-                // Swap data in the model
-                string temp = player.collectedKanji[slotIndex];
-                player.collectedKanji[slotIndex] = player.collectedKanji[draggedItem.originalIndex];
-                player.collectedKanji[draggedItem.originalIndex] = temp;
+            string temp = player.collectedKanji[toIndex];
+            player.collectedKanji[toIndex] = player.collectedKanji[fromIndex];
+            player.collectedKanji[fromIndex] = temp;
 
-                Debug.Log($"横長スロット{draggedItem.originalIndex + 1}からスロット{slotIndex + 1}へ入れ替えました");
-
-                // Note: The UI will refresh via InventoryUI.Update
-                // But as the user requested: "ドラッグしてきたアイテムを自分のスロットの子要素にし"
-                // The parent setting is handled by DraggableItem.OnEndDrag back to parentAfterDrag
-                // So we should update parentAfterDrag if we want the UI elements to actually swap positions
-                draggedItem.parentAfterDrag = transform; // This slot becomes the new parent
-            }
+            Debug.Log($"スロット{fromIndex + 1} ⇔ スロット{toIndex + 1} を入れ替えました");
         }
     }
 }

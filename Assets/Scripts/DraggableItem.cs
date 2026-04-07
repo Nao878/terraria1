@@ -3,92 +3,172 @@ using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using TMPro;
 
+/// <summary>
+/// カード型ドラッグ＆ドロップ。スロット（親）にアタッチ。
+/// ドラッグ中はゴースト（半透明カード）を生成し、元のUI要素は動かさない。
+/// これにより InventoryUI.Update の毎フレーム同期との競合を防ぎ、アイテム増殖バグを解消。
+/// </summary>
 [RequireComponent(typeof(CanvasGroup))]
 public class DraggableItem : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
 {
-    public Transform parentAfterDrag;
+    [HideInInspector] public int slotIndex;
+    [HideInInspector] public PlayerController player;
+
+    // ドラッグ中かどうか（InventoryUI から参照）
+    [System.NonSerialized] public bool isDragging = false;
+
+    private Canvas rootCanvas;
+    private GameObject ghostObj;
     private CanvasGroup canvasGroup;
-    private TextMeshProUGUI text;
-    public int originalIndex;
-    private PlayerController player;
-    private Vector3 originalLocalPos;
+    private bool validDrag = false;
 
     public void Setup(PlayerController pc, int index)
     {
         player = pc;
-        originalIndex = index;
-        originalLocalPos = transform.localPosition;
+        slotIndex = index;
     }
 
     private void Awake()
     {
         canvasGroup = GetComponent<CanvasGroup>();
-        text = GetComponent<TextMeshProUGUI>();
     }
 
+    // ─── Begin Drag ───────────────────────────────────────
     public void OnBeginDrag(PointerEventData eventData)
     {
-        if (string.IsNullOrEmpty(text.text))
+        validDrag = false;
+
+        if (player == null) { eventData.pointerDrag = null; return; }
+        if (slotIndex >= player.collectedKanji.Count) { eventData.pointerDrag = null; return; }
+
+        string kanji = player.collectedKanji[slotIndex];
+        if (string.IsNullOrEmpty(kanji))
         {
-            eventData.pointerDrag = null; // Do not drag empty slots
+            eventData.pointerDrag = null; // 空スロットはドラッグ不可
             return;
         }
 
-        parentAfterDrag = transform.parent;
-        transform.SetParent(transform.root); // Move to top level for dragging
-        transform.SetAsLastSibling();
-        canvasGroup.blocksRaycasts = false;
+        validDrag = true;
+        isDragging = true;
+
+        // ルートCanvasを取得
+        if (rootCanvas == null)
+            rootCanvas = GetComponentInParent<Canvas>().rootCanvas;
+
+        // ゴーストカード生成
+        CreateGhost(kanji);
+
+        // 元スロットを半透明に
+        canvasGroup.alpha = 0.4f;
     }
 
+    // ─── Drag ─────────────────────────────────────────────
     public void OnDrag(PointerEventData eventData)
     {
-        transform.position = Input.mousePosition;
+        if (!validDrag || ghostObj == null) return;
+        ghostObj.transform.position = eventData.position;
     }
 
+    // ─── End Drag ─────────────────────────────────────────
     public void OnEndDrag(PointerEventData eventData)
     {
-        transform.SetParent(parentAfterDrag);
-        transform.localPosition = originalLocalPos;
-        canvasGroup.blocksRaycasts = true;
+        if (!validDrag) return;
 
-        // If not dropped on a slot (or slot with IDropHandler), discard it
-        if (eventData.pointerEnter == null || eventData.pointerEnter.GetComponentInParent<InventorySlot>() == null)
+        // ゴースト破棄
+        if (ghostObj != null) Destroy(ghostObj);
+
+        // 元スロットの透明度を戻す
+        canvasGroup.alpha = 1f;
+        isDragging = false;
+
+        // ドロップ先がスロットなら InventorySlot.OnDrop で処理済み
+        // ドロップ先がスロット外ならアイテムをワールドにドロップ
+        bool droppedOnSlot = false;
+        if (eventData.pointerEnter != null)
         {
-            DiscardItemInternal();
+            InventorySlot targetSlot = eventData.pointerEnter.GetComponentInParent<InventorySlot>();
+            if (targetSlot != null) droppedOnSlot = true;
+        }
+
+        if (!droppedOnSlot)
+        {
+            DiscardItem();
         }
     }
 
-    private void DiscardItemInternal()
+    // ─── ゴースト生成 ─────────────────────────────────────
+    private void CreateGhost(string kanji)
+    {
+        ghostObj = new GameObject("DragGhost");
+        ghostObj.transform.SetParent(rootCanvas.transform, false);
+        ghostObj.transform.SetAsLastSibling();
+
+        RectTransform rt = ghostObj.AddComponent<RectTransform>();
+        rt.sizeDelta = new Vector2(80, 80);
+
+        // カード背景
+        Image bg = ghostObj.AddComponent<Image>();
+        bg.color = new Color(0.2f, 0.6f, 0.9f, 0.85f); // 青みのあるカード色
+
+        // Raycast を通さない（他のスロットの OnDrop を受けるため）
+        bg.raycastTarget = false;
+
+        // CanvasGroup
+        CanvasGroup cg = ghostObj.AddComponent<CanvasGroup>();
+        cg.blocksRaycasts = false;
+        cg.alpha = 0.9f;
+
+        // テキスト
+        GameObject textObj = new GameObject("GhostText");
+        textObj.transform.SetParent(ghostObj.transform, false);
+
+        RectTransform textRt = textObj.AddComponent<RectTransform>();
+        textRt.anchorMin = Vector2.zero;
+        textRt.anchorMax = Vector2.one;
+        textRt.sizeDelta = Vector2.zero;
+
+        TextMeshProUGUI txt = textObj.AddComponent<TextMeshProUGUI>();
+        txt.text = kanji;
+        txt.fontSize = 40;
+        txt.alignment = TextAlignmentOptions.Center;
+        txt.color = Color.white;
+        txt.raycastTarget = false;
+
+        // 元スロットのフォントを参照
+        TextMeshProUGUI srcTxt = GetComponentInChildren<TextMeshProUGUI>();
+        if (srcTxt != null && srcTxt.font != null) txt.font = srcTxt.font;
+
+        // カーソル位置に移動
+        ghostObj.transform.position = Input.mousePosition;
+    }
+
+    // ─── アイテム破棄（ワールドにドロップ） ───────────────
+    private void DiscardItem()
     {
         if (player == null) return;
+        if (slotIndex >= player.collectedKanji.Count) return;
 
-        string kanji = player.collectedKanji[originalIndex];
-        if (!string.IsNullOrEmpty(kanji))
+        string kanji = player.collectedKanji[slotIndex];
+        if (string.IsNullOrEmpty(kanji)) return;
+
+        // データモデルをクリア
+        player.collectedKanji[slotIndex] = "";
+        Debug.Log($"『{kanji}』を捨てました");
+
+        // DropItemEntity をスポーン
+        GameObject prefab = Resources.Load<GameObject>("DropItemEntity");
+        if (prefab != null)
         {
-            // Update data model
-            player.collectedKanji[originalIndex] = "";
-            Debug.Log($"『{kanji}』を捨てました");
+            float direction = player.transform.localScale.x > 0 ? 1f : -1f;
+            Vector3 spawnPos = player.transform.position + Vector3.up * 1.0f + Vector3.right * direction * 1.5f;
 
-            // Spawn DropItemEntity from Resources
-            GameObject prefab = Resources.Load<GameObject>("DropItemEntity");
-            if (prefab != null)
-            {
-                // Spawn offset: In front of player
-                float direction = player.transform.localScale.x > 0 ? 1f : -1f;
-                // If the player doesn't have localScale flip, we can use a movement variable or just a fixed offset
-                Vector3 spawnPos = player.transform.position + Vector3.up * 1.0f + Vector3.right * direction * 1.5f;
-                
-                GameObject dropped = Object.Instantiate(prefab, spawnPos, Quaternion.identity);
-                DropItem item = dropped.GetComponent<DropItem>();
-                if (item != null)
-                {
-                    item.kanji = kanji;
-                }
-            }
-            else
-            {
-                Debug.LogError("DropItemEntity prefab not found in Resources folder!");
-            }
+            GameObject dropped = Object.Instantiate(prefab, spawnPos, Quaternion.identity);
+            DropItem item = dropped.GetComponent<DropItem>();
+            if (item != null) item.kanji = kanji;
+        }
+        else
+        {
+            Debug.LogError("DropItemEntity prefab not found in Resources folder!");
         }
     }
 }

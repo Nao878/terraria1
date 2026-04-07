@@ -1,21 +1,29 @@
 using UnityEngine;
 using TMPro;
 using UnityEngine.UI;
+using UnityEngine.InputSystem;
 using System.Collections.Generic;
 
+/// <summary>
+/// インベントリUI管理。
+/// Hotbar（0-8）とBag（9-35）のスロットを管理し、
+/// PlayerController.collectedKanji と毎フレーム同期する。
+/// ドラッグ中のスロットは更新をスキップしてアイテム増殖を防止。
+/// </summary>
 public class InventoryUI : MonoBehaviour
 {
     [Header("Panels")]
     public GameObject bagPanel; // The 3x9 grid panel (toggleable)
-    
+
     [Header("Grids")]
     public Transform hotbarGrid; // 1x9 slots (persistent)
     public Transform bagGrid;    // 3x9 slots (inside bagPanel)
-    
+
     public GameObject slotPrefab;
     public PlayerController player;
-    
+
     private List<GameObject> slots = new List<GameObject>();
+    private List<DraggableItem> draggables = new List<DraggableItem>();
 
     void Start()
     {
@@ -25,6 +33,8 @@ public class InventoryUI : MonoBehaviour
     public void RefreshSlotList()
     {
         slots.Clear();
+        draggables.Clear();
+
         // The list order MUST be: 0-8 (Hotbar), 9-35 (Bag)
         if (hotbarGrid != null)
         {
@@ -48,11 +58,31 @@ public class InventoryUI : MonoBehaviour
 
     private void SetupSlot(GameObject slotObj, int index)
     {
+        // InventorySlot（IDropHandler）
         InventorySlot slot = slotObj.GetComponent<InventorySlot>();
         if (slot != null) slot.Setup(player, index);
-        
-        DraggableItem drag = slotObj.GetComponentInChildren<DraggableItem>();
-        if (drag != null) drag.Setup(player, index);
+
+        // DraggableItem はスロット親オブジェクトにアタッチ
+        DraggableItem drag = slotObj.GetComponent<DraggableItem>();
+        if (drag == null)
+        {
+            // 旧設計: Text子要素にあった DraggableItem を削除
+            DraggableItem oldDrag = slotObj.GetComponentInChildren<DraggableItem>();
+            if (oldDrag != null && oldDrag.gameObject != slotObj)
+            {
+                // 古い DraggableItem コンポーネントを除去
+                Destroy(oldDrag);
+            }
+            // スロット親に新たにアタッチ
+            drag = slotObj.AddComponent<DraggableItem>();
+        }
+
+        // CanvasGroup が必要
+        if (slotObj.GetComponent<CanvasGroup>() == null)
+            slotObj.AddComponent<CanvasGroup>();
+
+        drag.Setup(player, index);
+        draggables.Add(drag);
     }
 
     void Update()
@@ -60,11 +90,21 @@ public class InventoryUI : MonoBehaviour
         if (player == null) return;
         if (slots.Count == 0) RefreshSlotList();
 
+        // Eキーでインベントリ開閉
+        if (Keyboard.current != null && Keyboard.current.eKey.wasPressedThisFrame)
+        {
+            ToggleInventory();
+        }
+
         // Sync all slots with player's collectedKanji
         for (int i = 0; i < 36; i++)
         {
             if (i >= slots.Count) break;
-            
+
+            // ドラッグ中のスロットはUI更新をスキップ（増殖バグ防止）
+            if (i < draggables.Count && draggables[i] != null && draggables[i].isDragging)
+                continue;
+
             // Slot Content
             TextMeshProUGUI txt = slots[i].GetComponentInChildren<TextMeshProUGUI>();
             if (txt != null)
