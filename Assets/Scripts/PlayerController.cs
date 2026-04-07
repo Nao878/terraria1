@@ -9,7 +9,7 @@ public class PlayerController : MonoBehaviour
     public float jumpForce = 12f;
     public Transform groundCheck;
     public LayerMask groundLayer;
-    public List<string> collectedKanji = new List<string>();
+    public List<string> collectedKanji = new List<string>(); // Initialize as empty, Awake will handle sizing
 
     private Rigidbody2D rb;
     private bool isGrounded;
@@ -18,8 +18,30 @@ public class PlayerController : MonoBehaviour
     void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
+        
+        // Ensure list has exactly 36 elements
+        if (collectedKanji == null) collectedKanji = new List<string>();
+        
+        // Remove extra elements if any
+        if (collectedKanji.Count > 36)
+        {
+            collectedKanji.RemoveRange(36, collectedKanji.Count - 36);
+        }
+        
+        // Add elements if fewer than 36
+        while (collectedKanji.Count < 36)
+        {
+            collectedKanji.Add("");
+        }
+
+        // Initialize empty slots with empty strings if they are null
+        for (int i = 0; i < 36; i++)
+        {
+            if (collectedKanji[i] == null) collectedKanji[i] = "";
+        }
+
         // Disable physics until world is ready
-        rb.simulated = false;
+        if (rb != null) rb.simulated = false;
     }
 
     void Start()
@@ -29,11 +51,11 @@ public class PlayerController : MonoBehaviour
         if (wg != null)
         {
             transform.position = wg.GetSpawnPosition();
-            rb.linearVelocity = Vector2.zero;
+            if (rb != null) rb.linearVelocity = Vector2.zero;
         }
         
         // Re-enable physics now that terrain is (likely) ready
-        rb.simulated = true;
+        if (rb != null) rb.simulated = true;
     }
 
     [Header("Hotbar Settings")]
@@ -74,15 +96,15 @@ public class PlayerController : MonoBehaviour
 
             if (Keyboard.current.spaceKey.wasPressedThisFrame && isGrounded)
             {
-                rb.linearVelocity = new Vector2(rb.linearVelocity.x, jumpForce);
+                if (rb != null) rb.linearVelocity = new Vector2(rb.linearVelocity.x, jumpForce);
             }
         }
 
-        isGrounded = groundCheck != null ? Physics2D.OverlapCircle(groundCheck.position, 0.2f, groundLayer) : Mathf.Abs(rb.linearVelocity.y) < 0.01f;
+        isGrounded = groundCheck != null ? Physics2D.OverlapCircle(groundCheck.position, 0.2f, groundLayer) : (rb != null && Mathf.Abs(rb.linearVelocity.y) < 0.01f);
     }
 
     void FixedUpdate()
     {
-        rb.linearVelocity = new Vector2(moveInput * moveSpeed, rb.linearVelocity.y);
+        if (rb != null) rb.linearVelocity = new Vector2(moveInput * moveSpeed, rb.linearVelocity.y);
     }
 }

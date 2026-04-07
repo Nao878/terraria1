@@ -50,13 +50,14 @@ public class BlockInteraction : MonoBehaviour
                         
                         if (!string.IsNullOrEmpty(character))
                         {
-                            if (pc.collectedKanji.Count >= 36)
+                            int emptySlot = pc.collectedKanji.FindIndex(s => string.IsNullOrEmpty(s));
+                            if (emptySlot == -1)
                             {
                                 Debug.Log("インベントリがいっぱいです");
                                 return;
                             }
-                            pc.collectedKanji.Add(character);
-                            Debug.Log($"『{character}』を取得しました！現在所持数: {pc.collectedKanji.Count}");
+                            pc.collectedKanji[emptySlot] = character;
+                            Debug.Log($"『{character}』を取得しました！スロット: {emptySlot + 1}");
                         }
                     }
                     
@@ -79,7 +80,7 @@ public class BlockInteraction : MonoBehaviour
                     }
 
                     PlayerController pc = GetComponent<PlayerController>();
-                    if (pc != null && pc.selectedIndex < pc.collectedKanji.Count)
+                    if (pc != null && pc.selectedIndex < pc.collectedKanji.Count && !string.IsNullOrEmpty(pc.collectedKanji[pc.selectedIndex]))
                     {
                         string kanjiToPlace = pc.collectedKanji[pc.selectedIndex];
                         TileBase tileToPlace = null;
@@ -89,7 +90,7 @@ public class BlockInteraction : MonoBehaviour
                         if (tileToPlace != null)
                         {
                             groundTilemap.SetTile(cellPos, tileToPlace);
-                            pc.collectedKanji.RemoveAt(pc.selectedIndex);
+                            pc.collectedKanji[pc.selectedIndex] = ""; // Clear the slot
                             Debug.Log($"Placed {kanjiToPlace} from slot {pc.selectedIndex + 1} at: {cellPos}");
                         }
                         else if (groundTile != null) // Fallback to dirt

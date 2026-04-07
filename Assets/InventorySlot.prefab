@@ -11,6 +11,7 @@ GameObject:
   - component: {fileID: 365234843885595395}
   - component: {fileID: 2855570081656449555}
   - component: {fileID: 1575285792321029855}
+  - component: {fileID: 8771588889459258742}
   m_Layer: 0
   m_Name: InventorySlot
   m_TagString: Untagged
@@ -76,6 +77,19 @@ MonoBehaviour:
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
   m_PixelsPerUnitMultiplier: 1
+--- !u!114 &8771588889459258742
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6289045630352741463}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 95dc31220bdee7e4fb2aa94e51ff87ba, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::InventorySlot
+  slotIndex: 0
 --- !u!1 &6387144436075173427
 GameObject:
   m_ObjectHideFlags: 0
@@ -87,6 +101,8 @@ GameObject:
   - component: {fileID: 6350696862709589443}
   - component: {fileID: 8361093752864074948}
   - component: {fileID: 7526050169593337393}
+  - component: {fileID: 1942901747555838959}
+  - component: {fileID: 212242048724431969}
   m_Layer: 0
   m_Name: Text
   m_TagString: Untagged
@@ -213,3 +229,29 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!225 &1942901747555838959
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6387144436075173427}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 1
+  m_BlocksRaycasts: 1
+  m_IgnoreParentGroups: 0
+--- !u!114 &212242048724431969
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6387144436075173427}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 70b014b5823127c41b5b5d7cc78fa461, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DraggableItem
+  parentAfterDrag: {fileID: 0}
+  originalIndex: 0

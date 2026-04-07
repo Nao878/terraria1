@@ -28,12 +28,31 @@ public class InventoryUI : MonoBehaviour
         // The list order MUST be: 0-8 (Hotbar), 9-35 (Bag)
         if (hotbarGrid != null)
         {
-            foreach (Transform child in hotbarGrid) slots.Add(child.gameObject);
+            int i = 0;
+            foreach (Transform child in hotbarGrid)
+            {
+                slots.Add(child.gameObject);
+                SetupSlot(child.gameObject, i++);
+            }
         }
         if (bagGrid != null)
         {
-            foreach (Transform child in bagGrid) slots.Add(child.gameObject);
+            int i = 9;
+            foreach (Transform child in bagGrid)
+            {
+                slots.Add(child.gameObject);
+                SetupSlot(child.gameObject, i++);
+            }
         }
+    }
+
+    private void SetupSlot(GameObject slotObj, int index)
+    {
+        InventorySlot slot = slotObj.GetComponent<InventorySlot>();
+        if (slot != null) slot.Setup(player, index);
+        
+        DraggableItem drag = slotObj.GetComponentInChildren<DraggableItem>();
+        if (drag != null) drag.Setup(player, index);
     }
 
     void Update()
